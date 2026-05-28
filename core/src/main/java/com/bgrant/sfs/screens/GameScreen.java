@@ -6,12 +6,12 @@ import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Circle;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
@@ -32,22 +32,12 @@ public abstract class GameScreen implements Screen, InputProcessor {
     private final ExtendViewport viewport;
 
     // game
-    private enum GameState {
-        RUNNING,
-        PAUSED,
-        GAME_OVER
-    }
-
+    private enum GameState { RUNNING, PAUSED, GAME_OVER }
     private GameState gameState;
     private GlobalVariables.Difficulty difficulty = GlobalVariables.Difficulty.EASY;
 
     // rounds
-    private enum RoundState {
-        STARTING,
-        IN_PROGRESS,
-        ENDING
-    }
-
+    private enum RoundState { STARTING, IN_PROGRESS, ENDING }
     private RoundState roundState;
     private float roundStateTime;
     private static final float START_ROUND_DELAY = 2f;
@@ -89,31 +79,21 @@ public abstract class GameScreen implements Screen, InputProcessor {
     private Sprite mainMenuButtonSprite;
     private Sprite continueButtonSprite;
     private Sprite pauseButtonSprite;
-    // gameplay control button sprites (we'll create simple colored rectangles since we don't have specific textures)
-    private Sprite moveLeftButtonSprite;
-    private Sprite moveRightButtonSprite;
-    private Sprite moveUpButtonSprite;
-    private Sprite moveDownButtonSprite;
-    private Sprite blockButtonSprite;
-    private Sprite punchButtonSprite;
-    private Sprite kickButtonSprite;
     private static final float PAUSE_BUTTON_MARGIN = 1.5f;
-    private static final float GAMEPLAY_BUTTON_MARGIN = 2f;
-    private static final float GAMEPLAY_BUTTON_SIZE = 6f;
 
     // opponent AI
     private float opponentAiTimer;
     private boolean opponentAiMakingContactDecision;
-    private static final float OPPONENT_AI_CONTACT_DECISION_DELAY_EASY = 0.1f;
-    private static final float OPPONENT_AI_CONTACT_DECISION_DELAY_MEDIUM = 0.07f;
-    private static final float OPPONENT_AI_CONTACT_DECISION_DELAY_HARD = 0.01f;
-    private static final float OPPONENT_AI_BLOCK_CHANCE = 0.4f;
-    private static final float OPPONENT_AI_ATTACK_CHANCE = 0.8f;
-    private static final float OPPONENT_AI_NON_CONTACT_DECISION_DELAY = 0.5f;
+    private static final float OPPONENT_AI_CONTACT_DECISION_DELAY_EASY   = 0.1f;
+    private static final float OPPONENT_AI_CONTACT_DECISION_DELAY_MEDIUM  = 0.07f;
+    private static final float OPPONENT_AI_CONTACT_DECISION_DELAY_HARD    = 0.01f;
+    private static final float OPPONENT_AI_BLOCK_CHANCE                   = 0.4f;
+    private static final float OPPONENT_AI_ATTACK_CHANCE                  = 0.8f;
+    private static final float OPPONENT_AI_NON_CONTACT_DECISION_DELAY     = 0.5f;
     private boolean opponentAiPursuingPlayer;
-    private static final float OPPONENT_AI_PURSUE_PLAYER_CHANCE_EASY = 0.2f;
+    private static final float OPPONENT_AI_PURSUE_PLAYER_CHANCE_EASY   = 0.2f;
     private static final float OPPONENT_AI_PURSUE_PLAYER_CHANCE_MEDIUM = 0.5f;
-    private static final float OPPONENT_AI_PURSUE_PLAYER_CHANCE_HARD = 1f;
+    private static final float OPPONENT_AI_PURSUE_PLAYER_CHANCE_HARD   = 1f;
 
     // blood
     private boolean showingBlood = true;
@@ -128,28 +108,217 @@ public abstract class GameScreen implements Screen, InputProcessor {
     private int currentBloodPoolIndex;
     private static final int BLOOD_POOL_AMOUNT = 100;
 
+    // =========================================================
+    // JOYSTICK VIRTUAL (izquierda inferior)
+    // =========================================================
+    private static final float JOYSTICK_BASE_X      = 6f;
+    private static final float JOYSTICK_BASE_Y      = 7f;
+    private static final float JOYSTICK_BASE_RADIUS = 4.5f;
+    private static final float JOYSTICK_KNOB_RADIUS = 2f;
+    private static final float JOYSTICK_DEAD_ZONE   = 0.5f;
+
+    private int joystickPointer = -1;
+    private final Vector2 joystickKnob = new Vector2();
+    private boolean joystickMovingLeft  = false;
+    private boolean joystickMovingRight = false;
+    private boolean joystickMovingUp    = false;
+    private boolean joystickMovingDown  = false;
+
+    private static final Color JOYSTICK_BASE_COLOR = new Color(1f, 1f, 1f, 0.15f);
+    private static final Color JOYSTICK_KNOB_COLOR = new Color(1f, 1f, 1f, 0.40f);
+
+    // =========================================================
+    // BOTONES DE ACCION (derecha inferior)
+    // P = Puño   K = Patada   B = Bloqueo
+    // =========================================================
+    private static final float ACTION_BUTTON_RADIUS = 3f;
+    private static final float ACTION_BUTTON_MARGIN = 1.5f;
+
+    private final Circle punchButtonCircle = new Circle();
+    private final Circle kickButtonCircle  = new Circle();
+    private final Circle blockButtonCircle = new Circle();
+
+    private static final Color PUNCH_BUTTON_COLOR  = new Color(0.48f, 0.18f, 0.55f, 0.80f);
+    private static final Color KICK_BUTTON_COLOR   = new Color(0.18f, 0.42f, 0.31f, 0.80f);
+    private static final Color BLOCK_BUTTON_COLOR  = new Color(0.49f, 0.07f, 0.16f, 0.80f);
+    private static final Color BUTTON_BORDER_COLOR = new Color(1f, 1f, 1f, 0.35f);
+
+    // =========================================================
+
     public GameScreen(SFS game) {
         this.game = game;
-
-        // set up the viewport
         viewport = new ExtendViewport(GlobalVariables.WORLD_WIDTH, GlobalVariables.MIN_WORLD_HEIGHT,
-                GlobalVariables.WORLD_WIDTH, 0);
-
-        // create the game area
+            GlobalVariables.WORLD_WIDTH, 0);
         createGameArea();
-
-        // set up the fonts
         setUpFonts();
-
-        // create the buttons
         createButtons();
-
-        // create the blood splatters and pools
         createBlood();
+        joystickKnob.set(JOYSTICK_BASE_X, JOYSTICK_BASE_Y);
     }
 
+    // ---------------------------------------------------------
+    // Calcula posiciones de botones segun tamaño del mundo
+    // ---------------------------------------------------------
+    private void updateActionButtonPositions() {
+        float w = viewport.getWorldWidth();
+        float r = ACTION_BUTTON_RADIUS;
+        float m = ACTION_BUTTON_MARGIN;
+        punchButtonCircle.set(w - m - r,            m + r,            r);
+        kickButtonCircle .set(w - m - r*3f - m,     m + r,            r);
+        blockButtonCircle.set(w - m - r,             m + r*3f + m,     r);
+    }
+
+    // ---------------------------------------------------------
+    // Dibuja joystick y botones de accion
+    // ---------------------------------------------------------
+    private void renderTouchControls() {
+        if (gameState != GameState.RUNNING) return;
+        updateActionButtonPositions();
+
+        game.batch.end();
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+
+        // base joystick
+        game.shapeRenderer.setColor(JOYSTICK_BASE_COLOR);
+        game.shapeRenderer.circle(JOYSTICK_BASE_X, JOYSTICK_BASE_Y, JOYSTICK_BASE_RADIUS, 32);
+        // nub joystick
+        game.shapeRenderer.setColor(JOYSTICK_KNOB_COLOR);
+        game.shapeRenderer.circle(joystickKnob.x, joystickKnob.y, JOYSTICK_KNOB_RADIUS, 32);
+
+        // botones
+        game.shapeRenderer.setColor(PUNCH_BUTTON_COLOR);
+        game.shapeRenderer.circle(punchButtonCircle.x, punchButtonCircle.y, punchButtonCircle.radius, 32);
+        game.shapeRenderer.setColor(KICK_BUTTON_COLOR);
+        game.shapeRenderer.circle(kickButtonCircle.x, kickButtonCircle.y, kickButtonCircle.radius, 32);
+        game.shapeRenderer.setColor(BLOCK_BUTTON_COLOR);
+        game.shapeRenderer.circle(blockButtonCircle.x, blockButtonCircle.y, blockButtonCircle.radius, 32);
+
+        game.shapeRenderer.end();
+
+        // bordes
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        game.shapeRenderer.setColor(BUTTON_BORDER_COLOR);
+        game.shapeRenderer.circle(JOYSTICK_BASE_X, JOYSTICK_BASE_Y, JOYSTICK_BASE_RADIUS, 32);
+        game.shapeRenderer.circle(punchButtonCircle.x, punchButtonCircle.y, punchButtonCircle.radius, 32);
+        game.shapeRenderer.circle(kickButtonCircle.x,  kickButtonCircle.y,  kickButtonCircle.radius,  32);
+        game.shapeRenderer.circle(blockButtonCircle.x, blockButtonCircle.y, blockButtonCircle.radius, 32);
+        game.shapeRenderer.end();
+
+        Gdx.gl.glDisable(GL20.GL_BLEND);
+        game.batch.begin();
+
+        // etiquetas: P K B
+        smallFont.draw(game.batch, "P",
+            punchButtonCircle.x - smallFont.getSpaceXadvance() * 0.5f,
+            punchButtonCircle.y + smallFont.getCapHeight() * 0.5f);
+        smallFont.draw(game.batch, "K",
+            kickButtonCircle.x - smallFont.getSpaceXadvance() * 0.5f,
+            kickButtonCircle.y + smallFont.getCapHeight() * 0.5f);
+        smallFont.draw(game.batch, "B",
+            blockButtonCircle.x - smallFont.getSpaceXadvance() * 0.5f,
+            blockButtonCircle.y + smallFont.getCapHeight() * 0.5f);
+    }
+
+    // ---------------------------------------------------------
+    // Convierte pantalla -> mundo
+    // ---------------------------------------------------------
+    private Vector2 screenToWorld(int screenX, int screenY) {
+        Vector3 v = new Vector3(screenX, screenY, 0);
+        viewport.getCamera().unproject(v, viewport.getScreenX(), viewport.getScreenY(),
+            viewport.getScreenWidth(), viewport.getScreenHeight());
+        return new Vector2(v.x, v.y);
+    }
+
+    // ---------------------------------------------------------
+    // Touch down: joystick o boton de accion
+    // ---------------------------------------------------------
+    private boolean handleTouchDownControls(int screenX, int screenY, int pointer) {
+        if (gameState != GameState.RUNNING) return false;
+        Vector2 world = screenToWorld(screenX, screenY);
+
+        // joystick
+        if (joystickPointer == -1 &&
+            Vector2.dst(world.x, world.y, JOYSTICK_BASE_X, JOYSTICK_BASE_Y) <= JOYSTICK_BASE_RADIUS) {
+            joystickPointer = pointer;
+            updateJoystick(world.x, world.y);
+            return true;
+        }
+
+        updateActionButtonPositions();
+        if (punchButtonCircle.contains(world)) { game.player.punch(); return true; }
+        if (kickButtonCircle .contains(world)) { game.player.kick();  return true; }
+        if (blockButtonCircle.contains(world)) { game.player.block(); return true; }
+
+        return false;
+    }
+
+    // ---------------------------------------------------------
+    // Touch dragged: mueve el nub del joystick
+    // ---------------------------------------------------------
+    private boolean handleTouchDraggedControls(int screenX, int screenY, int pointer) {
+        if (pointer == joystickPointer) {
+            Vector2 world = screenToWorld(screenX, screenY);
+            updateJoystick(world.x, world.y);
+            return true;
+        }
+        return false;
+    }
+
+    // ---------------------------------------------------------
+    // Touch up: suelta joystick o bloqueo
+    // ---------------------------------------------------------
+    private boolean handleTouchUpControls(int screenX, int screenY, int pointer) {
+        if (pointer == joystickPointer) {
+            joystickPointer = -1;
+            joystickKnob.set(JOYSTICK_BASE_X, JOYSTICK_BASE_Y);
+            releaseJoystick();
+            return true;
+        }
+        if (gameState != GameState.RUNNING) return false;
+        Vector2 world = screenToWorld(screenX, screenY);
+        updateActionButtonPositions();
+        if (blockButtonCircle.contains(world)) { game.player.stopBlocking(); return true; }
+        return false;
+    }
+
+    // ---------------------------------------------------------
+    // Logica del joystick: mueve al jugador segun desplazamiento
+    // ---------------------------------------------------------
+    private void updateJoystick(float touchX, float touchY) {
+        float dx   = touchX - JOYSTICK_BASE_X;
+        float dy   = touchY - JOYSTICK_BASE_Y;
+        float dist = (float) Math.sqrt(dx * dx + dy * dy);
+        if (dist > JOYSTICK_BASE_RADIUS) {
+            dx = dx / dist * JOYSTICK_BASE_RADIUS;
+            dy = dy / dist * JOYSTICK_BASE_RADIUS;
+        }
+        joystickKnob.set(JOYSTICK_BASE_X + dx, JOYSTICK_BASE_Y + dy);
+
+        boolean wantLeft  = dx < -JOYSTICK_DEAD_ZONE;
+        boolean wantRight = dx >  JOYSTICK_DEAD_ZONE;
+        boolean wantUp    = dy >  JOYSTICK_DEAD_ZONE;
+        boolean wantDown  = dy < -JOYSTICK_DEAD_ZONE;
+
+        if (wantLeft  != joystickMovingLeft)  { joystickMovingLeft  = wantLeft;  if (wantLeft)  game.player.moveLeft();       else game.player.stopMovingLeft();  }
+        if (wantRight != joystickMovingRight) { joystickMovingRight = wantRight; if (wantRight) game.player.moveRight();      else game.player.stopMovingRight(); }
+        if (wantUp    != joystickMovingUp)    { joystickMovingUp    = wantUp;    if (wantUp)    game.player.moveUp();         else game.player.stopMovingUp();    }
+        if (wantDown  != joystickMovingDown)  { joystickMovingDown  = wantDown;  if (wantDown)  game.player.moveDown();       else game.player.stopMovingDown();  }
+    }
+
+    private void releaseJoystick() {
+        if (joystickMovingLeft)  { game.player.stopMovingLeft();  joystickMovingLeft  = false; }
+        if (joystickMovingRight) { game.player.stopMovingRight(); joystickMovingRight = false; }
+        if (joystickMovingUp)    { game.player.stopMovingUp();    joystickMovingUp    = false; }
+        if (joystickMovingDown)  { game.player.stopMovingDown();  joystickMovingDown  = false; }
+    }
+
+    // =========================================================
+    // El resto del codigo original (sin cambios)
+    // =========================================================
+
     private void createGameArea() {
-        // get the ring textures from the asset manager
         backgroundTexture = game.assets.manager.get(Assets.BACKGROUND_TEXTURE);
         frontRopesTexture = game.assets.manager.get(Assets.FRONT_ROPES_TEXTURE);
     }
@@ -172,739 +341,323 @@ public abstract class GameScreen implements Screen, InputProcessor {
     }
 
     private void createButtons() {
-        // get the gameplay button texture atlas from the asset manager
         TextureAtlas buttonTextureAtlas = game.assets.manager.get(Assets.GAMEPLAY_BUTTONS_ATLAS);
 
-        // create the play again button
         playAgainButtonSprite = new Sprite(buttonTextureAtlas.findRegion("PlayAgainButton"));
         playAgainButtonSprite.setSize(playAgainButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
-                playAgainButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+            playAgainButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
 
-        // create the main menu button
         mainMenuButtonSprite = new Sprite(buttonTextureAtlas.findRegion("MainMenuButton"));
         mainMenuButtonSprite.setSize(mainMenuButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
-                mainMenuButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+            mainMenuButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
 
-        // create the continue button
         continueButtonSprite = new Sprite(buttonTextureAtlas.findRegion("ContinueButton"));
         continueButtonSprite.setSize(continueButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
-                continueButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+            continueButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
 
-        // create the pause button
         pauseButtonSprite = new Sprite(buttonTextureAtlas.findRegion("PauseButton"));
         pauseButtonSprite.setSize(pauseButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
-                pauseButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
-
-        // create gameplay control button sprites (simple colored rectangles since we don't have specific textures)
-        // Move Left Button
-        Pixmap moveLeftPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
-                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
-        moveLeftPixmap.setColor(0.2f, 0.6f, 1f, 0.7f); // Blue with transparency
-        moveLeftPixmap.fill();
-        Texture moveLeftTexture = new Texture(moveLeftPixmap);
-        moveLeftButtonSprite = new Sprite(moveLeftTexture);
-        moveLeftPixmap.dispose();
-
-        // Move Right Button
-        Pixmap moveRightPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
-                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
-        moveRightPixmap.setColor(0.2f, 0.6f, 1f, 0.7f); // Blue with transparency
-        moveRightPixmap.fill();
-        Texture moveRightTexture = new Texture(moveRightPixmap);
-        moveRightButtonSprite = new Sprite(moveRightTexture);
-        moveRightPixmap.dispose();
-
-        // Move Up Button
-        Pixmap moveUpPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
-                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
-        moveUpPixmap.setColor(0.2f, 0.6f, 1f, 0.7f); // Blue with transparency
-        moveUpPixmap.fill();
-        Texture moveUpTexture = new Texture(moveUpPixmap);
-        moveUpButtonSprite = new Sprite(moveUpTexture);
-        moveUpPixmap.dispose();
-
-        // Move Down Button
-        Pixmap moveDownPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
-                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
-        moveDownPixmap.setColor(0.2f, 0.6f, 1f, 0.7f); // Blue with transparency
-        moveDownPixmap.fill();
-        Texture moveDownTexture = new Texture(moveDownPixmap);
-        moveDownButtonSprite = new Sprite(moveDownTexture);
-        moveDownPixmap.dispose();
-
-        // Block Button
-        Pixmap blockPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
-                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
-        blockPixmap.setColor(1f, 0.8f, 0.2f, 0.7f); // Orange with transparency
-        blockPixmap.fill();
-        Texture blockTexture = new Texture(blockPixmap);
-        blockButtonSprite = new Sprite(blockTexture);
-        blockPixmap.dispose();
-
-        // Punch Button
-        Pixmap punchPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
-                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
-        punchPixmap.setColor(0.2f, 1f, 0.2f, 0.7f); // Green with transparency
-        punchPixmap.fill();
-        Texture punchTexture = new Texture(punchPixmap);
-        punchButtonSprite = new Sprite(punchTexture);
-        punchPixmap.dispose();
-
-        // Kick Button
-        Pixmap kickPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
-                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
-        kickPixmap.setColor(1f, 0.2f, 0.2f, 0.7f); // Red with transparency
-        kickPixmap.fill();
-        Texture kickTexture = new Texture(kickPixmap);
-        kickButtonSprite = new Sprite(kickTexture);
-        kickPixmap.dispose();
+            pauseButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
     }
 
     private void createBlood() {
-        // initialize the blood splatters
-        playerBloodSplatters = new BloodSplatter[BLOOD_SPLATTER_AMOUNT];
+        playerBloodSplatters   = new BloodSplatter[BLOOD_SPLATTER_AMOUNT];
         opponentBloodSplatters = new BloodSplatter[BLOOD_SPLATTER_AMOUNT];
         for (int i = 0; i < BLOOD_SPLATTER_AMOUNT; i++) {
-            playerBloodSplatters[i] = new BloodSplatter(game);
+            playerBloodSplatters[i]   = new BloodSplatter(game);
             opponentBloodSplatters[i] = new BloodSplatter(game);
         }
-
-        // set the current blood splatter indexes to the start of the arrays
-        currentPlayerBloodSplatterIndex = 0;
+        currentPlayerBloodSplatterIndex   = 0;
         currentOpponentBloodSplatterIndex = 0;
 
-        // initialize the blood pools
         bloodPools = new BloodPool[BLOOD_POOL_AMOUNT];
-        for (int i = 0; i < BLOOD_POOL_AMOUNT; i++) {
-            bloodPools[i] = new BloodPool(game);
-        }
-
-        // set the current blood pool index to the start of the array
+        for (int i = 0; i < BLOOD_POOL_AMOUNT; i++) bloodPools[i] = new BloodPool(game);
         currentBloodPoolIndex = 0;
     }
 
     @Override
     public void show() {
-        // process user input
         Gdx.input.setInputProcessor(this);
-
-        // get the difficulty setting from the settings manager
-        difficulty = game.settingsManager.getDifficultySetting();
-
-        // get the blood setting from the settings manager
+        difficulty   = game.settingsManager.getDifficultySetting();
         showingBlood = game.settingsManager.isBloodSettingOn();
-
-        // start the game
         startGame();
     }
 
     private void startGame() {
-        gameState = GameState.RUNNING;
-        roundsWon = roundsLost = 0;
-
-        // start round 1
+        gameState  = GameState.RUNNING;
+        roundsWon  = roundsLost = 0;
         currentRound = 1;
         startRound();
     }
 
     private void pauseGame() {
         gameState = GameState.PAUSED;
-
-        // pause game sounds and music
         game.audioManager.pauseGameSounds();
         game.audioManager.pauseMusic();
     }
 
     private void resumeGame() {
         gameState = GameState.RUNNING;
-
-        // resume game sounds and music (if it's enabled)
         game.audioManager.resumeGameSounds();
         game.audioManager.playMusic();
     }
 
     private void startRound() {
-        // get the fighters ready
         game.player.getReady(PLAYER_START_POSITION_X, FIGHTER_START_POSITION_Y);
         game.opponent.getReady(OPPONENT_START_POSITION_X, FIGHTER_START_POSITION_Y);
-
-        // start the round
-        roundState = RoundState.STARTING;
+        roundState     = RoundState.STARTING;
         roundStateTime = 0f;
-        roundTimer = MAX_ROUND_TIME;
+        roundTimer     = MAX_ROUND_TIME;
+        // resetear joystick
+        joystickPointer = -1;
+        joystickKnob.set(JOYSTICK_BASE_X, JOYSTICK_BASE_Y);
+        releaseJoystick();
     }
 
-    private void endRound() {
-        // end the round
-        roundState = RoundState.ENDING;
-        roundStateTime = 0f;
-    }
+    private void endRound()  { roundState = RoundState.ENDING;  roundStateTime = 0f; }
 
     private void winRound() {
-        // player wins the round and opponent loses
-        game.player.win();
-        game.opponent.lose();
-        roundsWon++;
-
-        // play cheer sound
+        game.player.win(); game.opponent.lose(); roundsWon++;
         game.audioManager.playSound(Assets.CHEER_SOUND);
-
-        // end the round
         endRound();
     }
 
     private void loseRound() {
-        // player loses the round and opponent wins
-        game.player.lose();
-        game.opponent.win();
-        roundsLost++;
-
-        // play boo sound
+        game.player.lose(); game.opponent.win(); roundsLost++;
         game.audioManager.playSound(Assets.BOO_SOUND);
-
-        // end the round
         endRound();
     }
 
     @Override
     public void render(float delta) {
         ScreenUtils.clear(0, 0, 0, 1);
-
-        // update the game -- delta time should be 0 if the game isn't running, to freeze the game
         update(gameState == GameState.RUNNING ? delta : 0f);
 
-        // set the sprite batch and the shape renderer to use the viewport's camera
         game.batch.setProjectionMatrix(viewport.getCamera().combined);
         game.shapeRenderer.setProjectionMatrix(viewport.getCamera().combined);
 
-        // begin drawing
         game.batch.begin();
-
-        // draw the background
-        game.batch.draw(backgroundTexture, 0, 0, backgroundTexture.getWidth() * GlobalVariables.WORLD_SCALE,
-                backgroundTexture.getHeight() * GlobalVariables.WORLD_SCALE);
-
-        // draw the blood pools
+        game.batch.draw(backgroundTexture, 0, 0,
+            backgroundTexture.getWidth() * GlobalVariables.WORLD_SCALE,
+            backgroundTexture.getHeight() * GlobalVariables.WORLD_SCALE);
         renderBloodPools();
-
-        // draw the fighters
         renderFighters();
-
-        // draw the front ropes
-        game.batch.draw(frontRopesTexture, 0, 0, frontRopesTexture.getWidth() * GlobalVariables.WORLD_SCALE,
-                frontRopesTexture.getHeight() * GlobalVariables.WORLD_SCALE);
-
-        // draw the HUD
+        game.batch.draw(frontRopesTexture, 0, 0,
+            frontRopesTexture.getWidth() * GlobalVariables.WORLD_SCALE,
+            frontRopesTexture.getHeight() * GlobalVariables.WORLD_SCALE);
         renderHUD();
-
-        // draw the pause button
         renderPauseButton();
+        renderTouchControls();   // <-- JOYSTICK + BOTONES
 
-        // if the game is over, draw the game over overlay
         if (gameState == GameState.GAME_OVER) {
             renderGameOverOverlay();
         } else {
-            // if the round is starting, draw the start round text
-            if (roundState == RoundState.STARTING) {
-                renderStartRoundText();
-            }
-
-            // if the game is paused, draw the pause overlay
-            if (gameState == GameState.PAUSED) {
-                renderPauseOverlay();
-            }
+            if (roundState == RoundState.STARTING) renderStartRoundText();
+            if (gameState  == GameState.PAUSED)    renderPauseOverlay();
         }
-
-        // draw gameplay control buttons
-        renderGameplayButtons();
-
-        // end drawing
         game.batch.end();
     }
 
     private void renderFighters() {
-        // use the y coordinates of the fighters' positions to determine which fighter to draw first
         if (game.player.getPosition().y > game.opponent.getPosition().y) {
-            // draw player
-            game.player.render(game.batch);
-
-            // draw the player's blood splatters (if enabled)
-            renderBloodSplatters(playerBloodSplatters);
-
-            // draw opponent
-            game.opponent.render(game.batch);
-
-            // draw the opponent's blood splatters (if enabled)
-            renderBloodSplatters(opponentBloodSplatters);
+            game.player.render(game.batch);   renderBloodSplatters(playerBloodSplatters);
+            game.opponent.render(game.batch); renderBloodSplatters(opponentBloodSplatters);
         } else {
-            // draw opponent
-            game.opponent.render(game.batch);
-
-            // draw the opponent's blood splatters (if enabled)
-            renderBloodSplatters(opponentBloodSplatters);
-
-            // draw player
-            game.player.render(game.batch);
-
-            // draw the player's blood splatters (if enabled)
-            renderBloodSplatters(playerBloodSplatters);
+            game.opponent.render(game.batch); renderBloodSplatters(opponentBloodSplatters);
+            game.player.render(game.batch);   renderBloodSplatters(playerBloodSplatters);
         }
     }
 
-    private void renderBloodSplatters(BloodSplatter[] bloodSplatters) {
-        // if showing blood, draw all (active) blood splatters in the given array
-        if (showingBlood) {
-            for (BloodSplatter bloodSplatter : bloodSplatters) {
-                bloodSplatter.render(game.batch);
-            }
-        }
+    private void renderBloodSplatters(BloodSplatter[] bs) {
+        if (showingBlood) for (BloodSplatter b : bs) b.render(game.batch);
     }
 
     private void renderBloodPools() {
-        // if showing blood, draw all (active) blood pools
-        if (showingBlood) {
-            for (BloodPool bloodPool : bloodPools) {
-                bloodPool.render(game.batch);
-            }
-        }
+        if (showingBlood) for (BloodPool bp : bloodPools) bp.render(game.batch);
     }
 
     private void renderHUD() {
-        float HUDMargin = 1f;
+        float m = 1f;
+        smallFont.draw(game.batch, "WINS: " + roundsWon + " - " + roundsLost, m, viewport.getWorldHeight() - m);
 
-        // draw the rounds won to lost ratio
-        smallFont.draw(game.batch, "WINS: " + roundsWon + " - " + roundsLost, HUDMargin, viewport.getWorldHeight() -
-                HUDMargin);
-
-        // draw the difficulty setting
         String text = "DIFFICULTY: ";
-        switch (difficulty) {
-            case EASY:
-                text += "EASY";
-                break;
-            case MEDIUM:
-                text += "MEDIUM";
-                break;
-            default:
-                text += "HARD";
-        }
-        smallFont.draw(game.batch, text, viewport.getWorldWidth() - HUDMargin, viewport.getWorldHeight() - HUDMargin,
-                0, Align.right, false);
+        switch (difficulty) { case EASY: text+="EASY"; break; case MEDIUM: text+="MEDIUM"; break; default: text+="HARD"; }
+        smallFont.draw(game.batch, text, viewport.getWorldWidth()-m, viewport.getWorldHeight()-m, 0, Align.right, false);
 
-        // set up the layout sizes and positioning
-        float healthBarPadding = 0.5f;
-        float healthBarHeight = smallFont.getCapHeight() + healthBarPadding * 2f;
-        float healthBarMaxWidth = 32f;
-        float healthBarBackgroundPadding = 0.2f;
-        float healthBarBackgroundHeight = healthBarHeight + healthBarBackgroundPadding * 2f;
-        float healthBarBackgroundWidth = healthBarMaxWidth + healthBarBackgroundPadding * 2f;
-        float healthBarBackgroundMarginTop = 0.8f;
-        float healthBarBackgroundPositionY = viewport.getWorldHeight() - HUDMargin - smallFont.getCapHeight() -
-                healthBarBackgroundMarginTop - healthBarBackgroundHeight;
-        float healthBarPositionY = healthBarBackgroundPositionY + healthBarBackgroundPadding;
-        float fighterNamePositionY = healthBarPositionY + healthBarHeight - healthBarPadding;
+        float hp=0.5f, hh=smallFont.getCapHeight()+hp*2f, hmw=32f, hbp=0.2f;
+        float hbh=hh+hbp*2f, hbw=hmw+hbp*2f, hbmt=0.8f;
+        float hbpy=viewport.getWorldHeight()-m-smallFont.getCapHeight()-hbmt-hbh;
+        float hpy=hbpy+hbp, fny=hpy+hh-hp;
 
         game.batch.end();
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        // draw the fighter health bar background rectangles
         game.shapeRenderer.setColor(HEALTH_BAR_BACKGROUND_COLOR);
-        game.shapeRenderer.rect(HUDMargin, healthBarBackgroundPositionY, healthBarBackgroundWidth, healthBarBackgroundHeight);
-        game.shapeRenderer.rect(viewport.getWorldWidth() - HUDMargin - healthBarBackgroundWidth, healthBarBackgroundPositionY,
-                healthBarBackgroundWidth, healthBarBackgroundHeight);
-
-        // draw the fighter health bar rectangles
+        game.shapeRenderer.rect(m, hbpy, hbw, hbh);
+        game.shapeRenderer.rect(viewport.getWorldWidth()-m-hbw, hbpy, hbw, hbh);
         game.shapeRenderer.setColor(HEALTH_BAR_COLOR);
-        float healthBarWidth = healthBarMaxWidth * game.player.getLife() / Fighter.MAX_LIFE;
-        game.shapeRenderer.rect(HUDMargin + healthBarBackgroundPadding, healthBarPositionY, healthBarWidth, healthBarHeight);
-        healthBarWidth = healthBarMaxWidth * game.opponent.getLife() / Fighter.MAX_LIFE;
-        game.shapeRenderer.rect(viewport.getWorldWidth() - HUDMargin - healthBarBackgroundPadding - healthBarWidth,
-                healthBarPositionY, healthBarWidth, healthBarHeight);
-
+        float hw = hmw * game.player.getLife() / Fighter.MAX_LIFE;
+        game.shapeRenderer.rect(m+hbp, hpy, hw, hh);
+        hw = hmw * game.opponent.getLife() / Fighter.MAX_LIFE;
+        game.shapeRenderer.rect(viewport.getWorldWidth()-m-hbp-hw, hpy, hw, hh);
         game.shapeRenderer.end();
         game.batch.begin();
 
-        // draw the fighter names
-        smallFont.draw(game.batch, game.player.getName(), HUDMargin + healthBarBackgroundPadding + healthBarPadding,
-                fighterNamePositionY);
-        smallFont.draw(game.batch, game.opponent.getName(), viewport.getWorldWidth() - HUDMargin - healthBarBackgroundPadding -
-                healthBarPadding, fighterNamePositionY, 0, Align.right, false);
+        smallFont.draw(game.batch, game.player.getName(), m+hbp+hp, fny);
+        smallFont.draw(game.batch, game.opponent.getName(), viewport.getWorldWidth()-m-hbp-hp, fny, 0, Align.right, false);
 
-        // draw the round timer
-        if (roundTimer < CRITICAL_ROUND_TIME) {
-            mediumFont.setColor(CRITICAL_ROUND_TIME_COLOR);
-        }
-        mediumFont.draw(game.batch, String.format(Locale.getDefault(), "%02d", (int) roundTimer), viewport.getWorldWidth() / 2f -
-                mediumFont.getSpaceXadvance() * 2.3f, viewport.getWorldHeight() - HUDMargin);
+        if (roundTimer < CRITICAL_ROUND_TIME) mediumFont.setColor(CRITICAL_ROUND_TIME_COLOR);
+        mediumFont.draw(game.batch, String.format(Locale.getDefault(), "%02d", (int) roundTimer),
+            viewport.getWorldWidth()/2f - mediumFont.getSpaceXadvance()*2.3f, viewport.getWorldHeight()-m);
         mediumFont.setColor(DEFAULT_FONT_COLOR);
     }
 
     private void renderStartRoundText() {
-        String text;
-        if (roundStateTime < START_ROUND_DELAY * 0.5f) {
-            text = "ROUND " + currentRound;
-        } else {
-            text = "FIGHT!";
-        }
-        mediumFont.draw(game.batch, text, viewport.getWorldWidth() / 2f, viewport.getWorldHeight() / 2f, 0,
-                Align.center, false);
+        String text = (roundStateTime < START_ROUND_DELAY*0.5f) ? "ROUND "+currentRound : "FIGHT!";
+        mediumFont.draw(game.batch, text, viewport.getWorldWidth()/2f, viewport.getWorldHeight()/2f, 0, Align.center, false);
     }
 
     private void renderPauseButton() {
-        pauseButtonSprite.setPosition(viewport.getWorldWidth() - PAUSE_BUTTON_MARGIN - pauseButtonSprite.getWidth(),
-                PAUSE_BUTTON_MARGIN);
+        pauseButtonSprite.setPosition(viewport.getWorldWidth()-PAUSE_BUTTON_MARGIN-pauseButtonSprite.getWidth(), PAUSE_BUTTON_MARGIN);
         pauseButtonSprite.draw(game.batch);
     }
 
-    private void renderGameplayButtons() {
-        // Position buttons at the bottom of the screen
-        float buttonY = GAMEPLAY_BUTTON_MARGIN;
-        float buttonSpacing = GAMEPLAY_BUTTON_MARGIN;
-        
-        // Move Left button (bottom left)
-        moveLeftButtonSprite.setPosition(buttonY, buttonY);
-        moveLeftButtonSprite.draw(game.batch);
-        
-        // Move Right button (next to move left)
-        moveRightButtonSprite.setPosition(buttonY + GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE + buttonSpacing, buttonY);
-        moveRightButtonSprite.draw(game.batch);
-        
-        // Move Up button (above move left/right)
-        moveUpButtonSprite.setPosition(buttonY + (GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE + buttonSpacing) / 2 - 
-                (GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE) / 2, 
-                buttonY + GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE + buttonSpacing);
-        moveUpButtonSprite.draw(game.batch);
-        
-        // Move Down button (below move left/right)
-        moveDownButtonSprite.setPosition(buttonY + (GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE + buttonSpacing) / 2 - 
-                (GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE) / 2, 
-                buttonY - GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE - buttonSpacing);
-        moveDownButtonSprite.draw(game.batch);
-        
-        // Block button (bottom right)
-        blockButtonSprite.setPosition(viewport.getWorldWidth() - blockButtonSprite.getWidth() - buttonY, buttonY);
-        blockButtonSprite.draw(game.batch);
-        
-        // Punch button (next to block)
-        punchButtonSprite.setPosition(viewport.getWorldWidth() - punchButtonSprite.getWidth() - buttonY - 
-                GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE - buttonSpacing, buttonY);
-        punchButtonSprite.draw(game.batch);
-        
-        // Kick button (next to punch)
-        kickButtonSprite.setPosition(viewport.getWorldWidth() - kickButtonSprite.getWidth() - buttonY - 
-                2 * (GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE + buttonSpacing), buttonY);
-        kickButtonSprite.draw(game.batch);
-    }
-
     private void renderGameOverOverlay() {
-        // cover the game area with a partially transparent black rectangle to darken the screen
         game.batch.end();
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        Gdx.gl.glEnable(GL20.GL_BLEND); Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        game.shapeRenderer.setColor(0, 0, 0, 0.7f);
-        game.shapeRenderer.rect(0, 0, viewport.getWorldWidth(), viewport.getWorldHeight());
-        game.shapeRenderer.end();
-        Gdx.gl.glDisable(GL20.GL_BLEND);
+        game.shapeRenderer.setColor(0,0,0,0.7f);
+        game.shapeRenderer.rect(0,0,viewport.getWorldWidth(),viewport.getWorldHeight());
+        game.shapeRenderer.end(); Gdx.gl.glDisable(GL20.GL_BLEND);
         game.batch.begin();
 
-        // calculate the layout dimensions
-        float textMarginBottom = 2f;
-        float buttonSpacing = 0.5f;
-        float layoutHeight = largeFont.getCapHeight() + textMarginBottom + playAgainButtonSprite.getHeight() +
-                buttonSpacing + mainMenuButtonSprite.getHeight();
-        float layoutPositionY = viewport.getWorldHeight() / 2f - layoutHeight / 2f;
-
-        // draw the buttons
-        mainMenuButtonSprite.setPosition(viewport.getWorldWidth() / 2f - mainMenuButtonSprite.getWidth() / 2f,
-                layoutPositionY);
+        float tb=2f, bs=0.5f;
+        float lh=largeFont.getCapHeight()+tb+playAgainButtonSprite.getHeight()+bs+mainMenuButtonSprite.getHeight();
+        float ly=viewport.getWorldHeight()/2f-lh/2f;
+        mainMenuButtonSprite.setPosition(viewport.getWorldWidth()/2f-mainMenuButtonSprite.getWidth()/2f, ly);
         mainMenuButtonSprite.draw(game.batch);
-        playAgainButtonSprite.setPosition(viewport.getWorldWidth() / 2f - playAgainButtonSprite.getWidth() / 2f,
-                layoutPositionY + mainMenuButtonSprite.getHeight() + buttonSpacing);
+        playAgainButtonSprite.setPosition(viewport.getWorldWidth()/2f-playAgainButtonSprite.getWidth()/2f, ly+mainMenuButtonSprite.getHeight()+bs);
         playAgainButtonSprite.draw(game.batch);
-
-        // draw the text
-        String text = roundsWon > roundsLost ? "YOU WON!" : "YOU LOST!";
-        largeFont.draw(game.batch, text, viewport.getWorldWidth() / 2f, playAgainButtonSprite.getY() +
-                        playAgainButtonSprite.getHeight() + textMarginBottom + largeFont.getCapHeight(), 0, Align.center,
-                false);
+        String text = (roundsWon > roundsLost) ? "YOU WON!" : "YOU LOST!";
+        largeFont.draw(game.batch, text, viewport.getWorldWidth()/2f,
+            playAgainButtonSprite.getY()+playAgainButtonSprite.getHeight()+tb+largeFont.getCapHeight(), 0, Align.center, false);
     }
 
     private void renderPauseOverlay() {
-        // cover the game area with a partially transparent black rectangle to darken the screen
         game.batch.end();
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        Gdx.gl.glEnable(GL20.GL_BLEND); Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        game.shapeRenderer.setColor(0, 0, 0, 0.7f);
-        game.shapeRenderer.rect(0, 0, viewport.getWorldWidth(), viewport.getWorldHeight());
-        game.shapeRenderer.end();
-        Gdx.gl.glDisable(GL20.GL_BLEND);
+        game.shapeRenderer.setColor(0,0,0,0.7f);
+        game.shapeRenderer.rect(0,0,viewport.getWorldWidth(),viewport.getWorldHeight());
+        game.shapeRenderer.end(); Gdx.gl.glDisable(GL20.GL_BLEND);
         game.batch.begin();
 
-        // calculate the layout dimensions
-        float textMarginBottom = 2f;
-        float buttonSpacing = 0.5f;
-        float layoutHeight = largeFont.getCapHeight() + textMarginBottom + continueButtonSprite.getHeight() +
-                buttonSpacing + mainMenuButtonSprite.getHeight();
-        float layoutPositionY = viewport.getWorldHeight() / 2f - layoutHeight / 2f;
-
-        // draw the buttons
-        mainMenuButtonSprite.setPosition(viewport.getWorldWidth() / 2f - mainMenuButtonSprite.getWidth() / 2f,
-                layoutPositionY);
+        float tb=2f, bs=0.5f;
+        float lh=largeFont.getCapHeight()+tb+continueButtonSprite.getHeight()+bs+mainMenuButtonSprite.getHeight();
+        float ly=viewport.getWorldHeight()/2f-lh/2f;
+        mainMenuButtonSprite.setPosition(viewport.getWorldWidth()/2f-mainMenuButtonSprite.getWidth()/2f, ly);
         mainMenuButtonSprite.draw(game.batch);
-        continueButtonSprite.setPosition(viewport.getWorldWidth() / 2f - continueButtonSprite.getWidth() / 2f,
-                layoutPositionY + mainMenuButtonSprite.getHeight() + buttonSpacing);
+        continueButtonSprite.setPosition(viewport.getWorldWidth()/2f-continueButtonSprite.getWidth()/2f, ly+mainMenuButtonSprite.getHeight()+bs);
         continueButtonSprite.draw(game.batch);
-
-        // draw the text
-        largeFont.draw(game.batch, "GAME PAUSED", viewport.getWorldWidth() / 2f, continueButtonSprite.getY() +
-                        continueButtonSprite.getHeight() + textMarginBottom + largeFont.getCapHeight(), 0, Align.center,
-                false);
+        largeFont.draw(game.batch, "GAME PAUSED", viewport.getWorldWidth()/2f,
+            continueButtonSprite.getY()+continueButtonSprite.getHeight()+tb+largeFont.getCapHeight(), 0, Align.center, false);
     }
 
     private void update(float deltaTime) {
         if (roundState == RoundState.STARTING && roundStateTime >= START_ROUND_DELAY) {
-            // if the start round delay has been reached, start the fight
-            roundState = RoundState.IN_PROGRESS;
-            roundStateTime = 0f;
+            roundState = RoundState.IN_PROGRESS; roundStateTime = 0f;
         } else if (roundState == RoundState.ENDING && roundStateTime >= END_ROUND_DELAY) {
-            // if the end round delay has been reached and player has won or lost more than half of the max number of rounds,
-            // end the game; otherwise, start the next round
-            if (roundsWon > MAX_ROUNDS / 2 || roundsLost > MAX_ROUNDS / 2) {
-                gameState = GameState.GAME_OVER;
-            } else {
-                currentRound++;
-                startRound();
-            }
+            if (roundsWon > MAX_ROUNDS/2 || roundsLost > MAX_ROUNDS/2) gameState = GameState.GAME_OVER;
+            else { currentRound++; startRound(); }
         } else {
-            // increment the round state time by delta time
             roundStateTime += deltaTime;
         }
 
-        // update the fighters (positions, animations, etc.)
         game.player.update(deltaTime);
         game.opponent.update(deltaTime);
-
-        // update the blood splatters
         for (int i = 0; i < BLOOD_SPLATTER_AMOUNT; i++) {
             playerBloodSplatters[i].update(deltaTime);
             opponentBloodSplatters[i].update(deltaTime);
         }
+        for (BloodPool bp : bloodPools) bp.update(deltaTime);
 
-        // update the blood pools
-        for (BloodPool bloodPool : bloodPools) {
-            bloodPool.update(deltaTime);
-        }
+        if (game.player.getPosition().x <= game.opponent.getPosition().x) { game.player.faceRight(); game.opponent.faceLeft(); }
+        else { game.player.faceLeft(); game.opponent.faceRight(); }
 
-        // make sure the fighters are facing each other
-        if (game.player.getPosition().x <= game.opponent.getPosition().x) {
-            game.player.faceRight();
-            game.opponent.faceLeft();
-        } else {
-            game.player.faceLeft();
-            game.opponent.faceRight();
-        }
-
-        // keep the fighters within the bounds of the ring
         keepWithinRingBounds(game.player.getPosition());
         keepWithinRingBounds(game.opponent.getPosition());
 
         if (roundState == RoundState.IN_PROGRESS) {
-            // if the round is in progress, decrease the round timer by delta time
             roundTimer -= deltaTime;
+            if (roundTimer <= 0f) { if (game.player.getLife() >= game.opponent.getLife()) winRound(); else loseRound(); }
 
-            if (roundTimer <= 0f) {
-                // if the round timer has finished and player has the same or more life than opponent, player wins the round;
-                // otherwise, player loses the round
-                if (game.player.getLife() >= game.opponent.getLife()) {
-                    winRound();
-                } else {
-                    loseRound();
-                }
-            }
-
-            // perform the AI for opponent
             performOpponentAi(deltaTime);
 
-            // check if the fighters are within contact distance
             if (areWithinContactDistance(game.player.getPosition(), game.opponent.getPosition())) {
                 if (game.player.isAttackActive()) {
-                    // if the fighters are within contact distance and player is actively attacking, opponent gets hit
                     game.opponent.getHit(Fighter.HIT_STRENGTH);
-
-                    if (game.opponent.isBlocking()) {
-                        // if opponent is blocking, play block sound
-                        game.audioManager.playSound(Assets.BLOCK_SOUND);
-                    } else {
-                        // if opponent isn't blocking, play hit sound
-                        game.audioManager.playSound(Assets.HIT_SOUND);
-
-                        // spill some blood
-                        spillBlood(game.opponent);
-                    }
-
-                    // deactivate player's attack
+                    if (game.opponent.isBlocking()) game.audioManager.playSound(Assets.BLOCK_SOUND);
+                    else { game.audioManager.playSound(Assets.HIT_SOUND); spillBlood(game.opponent); }
                     game.player.makeContact();
-
-                    // check if opponent has lost
-                    if (game.opponent.hasLost()) {
-                        // if opponent has lost, player wins the round
-                        winRound();
-                    }
+                    if (game.opponent.hasLost()) winRound();
                 } else if (game.opponent.isAttackActive()) {
-                    // if the fighters are within contact distance and opponent is actively attacking, player gets hit
                     game.player.getHit(Fighter.HIT_STRENGTH);
-
-                    if (game.player.isBlocking()) {
-                        // if player is blocking, play block sound
-                        game.audioManager.playSound(Assets.BLOCK_SOUND);
-                    } else {
-                        // if player isn't blocking, play hit sound
-                        game.audioManager.playSound(Assets.HIT_SOUND);
-
-                        // spill some blood
-                        spillBlood(game.player);
-                    }
-
-                    // deactivate opponent's attack
+                    if (game.player.isBlocking()) game.audioManager.playSound(Assets.BLOCK_SOUND);
+                    else { game.audioManager.playSound(Assets.HIT_SOUND); spillBlood(game.player); }
                     game.opponent.makeContact();
-
-                    // check if player has lost
-                    if (game.player.hasLost()) {
-                        // if player has lost, player loses the round
-                        loseRound();
-                    }
+                    if (game.player.hasLost()) loseRound();
                 }
             }
         }
     }
 
     private void spillBlood(Fighter fighter) {
-        // use the given fighter to get the correct blood splatter array and current index
-        BloodSplatter[] bloodSplatters;
-        int currentBloodSplatterIndex;
-        if (fighter.equals(game.player)) {
-            bloodSplatters = playerBloodSplatters;
-            currentBloodSplatterIndex = currentPlayerBloodSplatterIndex;
-        } else {
-            bloodSplatters = opponentBloodSplatters;
-            currentBloodSplatterIndex = currentOpponentBloodSplatterIndex;
-        }
-
-        // activate the current blood splatter in the array
-        bloodSplatters[currentBloodSplatterIndex].activate(fighter.getPosition().x + BLOOD_SPLATTER_OFFSET_X,
-                fighter.getPosition().y + BLOOD_SPLATTER_OFFSET_Y);
-
-        // increment the correct current blood splatter index, or return to the first if the end of the array has been
-        // reached
-        if (fighter.equals(game.player)) {
-            if (currentPlayerBloodSplatterIndex < BLOOD_SPLATTER_AMOUNT - 1) {
-                currentPlayerBloodSplatterIndex++;
-            } else {
-                currentPlayerBloodSplatterIndex = 0;
-            }
-        } else {
-            if (currentOpponentBloodSplatterIndex < BLOOD_SPLATTER_AMOUNT - 1) {
-                currentOpponentBloodSplatterIndex++;
-            } else {
-                currentOpponentBloodSplatterIndex = 0;
-            }
-        }
-
-        // activate the current blood pool in the array
+        BloodSplatter[] bs;
+        int idx;
+        if (fighter.equals(game.player)) { bs = playerBloodSplatters;   idx = currentPlayerBloodSplatterIndex; }
+        else                             { bs = opponentBloodSplatters; idx = currentOpponentBloodSplatterIndex; }
+        bs[idx].activate(fighter.getPosition().x + BLOOD_SPLATTER_OFFSET_X, fighter.getPosition().y + BLOOD_SPLATTER_OFFSET_Y);
+        if (fighter.equals(game.player))
+            currentPlayerBloodSplatterIndex   = (currentPlayerBloodSplatterIndex   < BLOOD_SPLATTER_AMOUNT-1) ? currentPlayerBloodSplatterIndex+1   : 0;
+        else
+            currentOpponentBloodSplatterIndex = (currentOpponentBloodSplatterIndex < BLOOD_SPLATTER_AMOUNT-1) ? currentOpponentBloodSplatterIndex+1 : 0;
         bloodPools[currentBloodPoolIndex].activate(fighter.getPosition().x, fighter.getPosition().y);
-
-        // increment the current blood pool index, or return to the first if the end of the blood pool array has been
-        // reached
-        if (currentBloodPoolIndex < BLOOD_POOL_AMOUNT - 1) {
-            currentBloodPoolIndex++;
-        } else {
-            currentBloodPoolIndex = 0;
-        }
+        currentBloodPoolIndex = (currentBloodPoolIndex < BLOOD_POOL_AMOUNT-1) ? currentBloodPoolIndex+1 : 0;
     }
 
-    private void keepWithinRingBounds(Vector2 position) {
-        if (position.y < RING_MIN_Y) {
-            position.y = RING_MIN_Y;
-        } else if (position.y > RING_MAX_Y) {
-            position.y = RING_MAX_Y;
-        }
-        if (position.x < position.y / RING_SLOPE + RING_MIN_X) {
-            position.x = position.y / RING_SLOPE + RING_MIN_X;
-        } else if (position.x > position.y / -RING_SLOPE + RING_MAX_X) {
-            position.x = position.y / -RING_SLOPE + RING_MAX_X;
-        }
+    private void keepWithinRingBounds(Vector2 p) {
+        if (p.y < RING_MIN_Y) p.y = RING_MIN_Y; else if (p.y > RING_MAX_Y) p.y = RING_MAX_Y;
+        if (p.x < p.y/RING_SLOPE+RING_MIN_X)  p.x = p.y/RING_SLOPE+RING_MIN_X;
+        else if (p.x > p.y/-RING_SLOPE+RING_MAX_X) p.x = p.y/-RING_SLOPE+RING_MAX_X;
     }
 
-    private boolean areWithinContactDistance(Vector2 position1, Vector2 position2) {
-        // determine if the positions are within the distance in which contact is possible
-        float xDistance = Math.abs(position1.x - position2.x);
-        float yDistance = Math.abs(position1.y - position2.y);
-        return xDistance <= FIGHTER_CONTACT_DISTANCE_X && yDistance <= FIGHTER_CONTACT_DISTANCE_Y;
+    private boolean areWithinContactDistance(Vector2 p1, Vector2 p2) {
+        return Math.abs(p1.x-p2.x) <= FIGHTER_CONTACT_DISTANCE_X && Math.abs(p1.y-p2.y) <= FIGHTER_CONTACT_DISTANCE_Y;
     }
 
     private void performOpponentAi(float deltaTime) {
-        // check if opponent is making a contact decision (attack, block, etc.)
         if (opponentAiMakingContactDecision) {
             if (game.opponent.isBlocking()) {
-                // if opponent is blocking, stop blocking if the fighters are not within contact distance, or player isn't
-                // attacking, or player has attacked and made contact
                 if (!areWithinContactDistance(game.player.getPosition(), game.opponent.getPosition()) ||
-                        !game.player.isAttacking() || game.player.hasMadeContact()) {
+                    !game.player.isAttacking() || game.player.hasMadeContact())
                     game.opponent.stopBlocking();
-                }
             } else if (!game.opponent.isAttacking()) {
-                // if opponent isn't currently attacking, check if the fighters are within contact distance
                 if (areWithinContactDistance(game.player.getPosition(), game.opponent.getPosition())) {
-                    if (opponentAiTimer <= 0f) {
-                        // if the fighters are within contact distance and the opponent AI timer has finished, make a
-                        // contact decision
-                        opponentAiMakeContactDecision();
-                    } else {
-                        // decrease the opponent AI timer by delta time
-                        opponentAiTimer -= deltaTime;
-                    }
-                } else {
-                    // if the fighters aren't within contact distance, opponent shouldn't make a contact decision
-                    opponentAiMakingContactDecision = false;
-                }
+                    if (opponentAiTimer <= 0f) opponentAiMakeContactDecision(); else opponentAiTimer -= deltaTime;
+                } else { opponentAiMakingContactDecision = false; }
             }
         } else {
             if (areWithinContactDistance(game.player.getPosition(), game.opponent.getPosition())) {
-                // if opponent isn't currently making a contact decision and the fighters are within contact distance,
-                // make a contact decision
                 opponentAiMakeContactDecision();
             } else {
                 if (opponentAiTimer <= 0f) {
-                    // if the fighters are not within contact distance and the opponent AI timer has finished, either
-                    // pursue player or move in a random direction
-                    float pursueChance = difficulty == GlobalVariables.Difficulty.EASY ? OPPONENT_AI_PURSUE_PLAYER_CHANCE_EASY :
-                            difficulty == GlobalVariables.Difficulty.MEDIUM ? OPPONENT_AI_PURSUE_PLAYER_CHANCE_MEDIUM :
-                                    OPPONENT_AI_PURSUE_PLAYER_CHANCE_HARD;
-                    if (MathUtils.random() <= pursueChance) {
-                        // opponent is pursuing player
-                        opponentAiPursuingPlayer = true;
-
-                        // move in the direction of player
-                        opponentAiMoveTowardPlayer();
-                    } else {
-                        // opponent is not pursuing player
-                        opponentAiPursuingPlayer = false;
-
-                        // move in a random direction
-                        opponentAiMoveRandomly();
-                    }
-
-                    // set the opponent AI timer to the non-contact decision delay
+                    float pc = difficulty==GlobalVariables.Difficulty.EASY ? OPPONENT_AI_PURSUE_PLAYER_CHANCE_EASY
+                        : difficulty==GlobalVariables.Difficulty.MEDIUM ? OPPONENT_AI_PURSUE_PLAYER_CHANCE_MEDIUM
+                        : OPPONENT_AI_PURSUE_PLAYER_CHANCE_HARD;
+                    if (MathUtils.random() <= pc) { opponentAiPursuingPlayer=true;  opponentAiMoveTowardPlayer(); }
+                    else                          { opponentAiPursuingPlayer=false; opponentAiMoveRandomly(); }
                     opponentAiTimer = OPPONENT_AI_NON_CONTACT_DECISION_DELAY;
                 } else {
-                    // if opponent is pursuing player, move in the direction of player
-                    if (opponentAiPursuingPlayer) {
-                        opponentAiMoveTowardPlayer();
-                    }
-
-                    // decrease the opponent AI timer by delta time
+                    if (opponentAiPursuingPlayer) opponentAiMoveTowardPlayer();
                     opponentAiTimer -= deltaTime;
                 }
             }
@@ -913,403 +666,136 @@ public abstract class GameScreen implements Screen, InputProcessor {
 
     private void opponentAiMakeContactDecision() {
         opponentAiMakingContactDecision = true;
-
-        // make a contact decision
         if (game.player.isAttacking()) {
-            // if player is attacking and hasn't yet made contact, determine whether to block player's attack or move away
-            // from player
             if (!game.player.hasMadeContact()) {
-                if (MathUtils.random() <= OPPONENT_AI_BLOCK_CHANCE) {
-                    // block player's attack
-                    game.opponent.block();
-                } else {
-                    // move away from player
-                    opponentAiMoveAwayFromPlayer();
-                }
+                if (MathUtils.random() <= OPPONENT_AI_BLOCK_CHANCE) game.opponent.block();
+                else opponentAiMoveAwayFromPlayer();
             }
         } else {
-            // if player isn't attacking, determine whether to attack player or move away from player
             if (MathUtils.random() <= OPPONENT_AI_ATTACK_CHANCE) {
-                // attack player (equal chance of punching or kicking)
-                if (MathUtils.random(1) == 0) {
-                    game.opponent.punch();
-                } else {
-                    game.opponent.kick();
-                }
-            } else {
-                // move away from player
-                opponentAiMoveAwayFromPlayer();
-            }
+                if (MathUtils.random(1)==0) game.opponent.punch(); else game.opponent.kick();
+            } else opponentAiMoveAwayFromPlayer();
         }
-
-        // set the opponent AI timer to a difficulty-based contact decision delay
-        switch (difficulty) {
-            case EASY:
-                opponentAiTimer = OPPONENT_AI_CONTACT_DECISION_DELAY_EASY;
-                break;
-            case MEDIUM:
-                opponentAiTimer = OPPONENT_AI_CONTACT_DECISION_DELAY_MEDIUM;
-                break;
-            default:
-                opponentAiTimer = OPPONENT_AI_CONTACT_DECISION_DELAY_HARD;
+        switch(difficulty) {
+            case EASY:   opponentAiTimer=OPPONENT_AI_CONTACT_DECISION_DELAY_EASY;   break;
+            case MEDIUM: opponentAiTimer=OPPONENT_AI_CONTACT_DECISION_DELAY_MEDIUM; break;
+            default:     opponentAiTimer=OPPONENT_AI_CONTACT_DECISION_DELAY_HARD;
         }
     }
 
     private void opponentAiMoveTowardPlayer() {
-        // move in the direction of player's position
-        Vector2 playerPosition = game.player.getPosition();
-        Vector2 opponentPosition = game.opponent.getPosition();
-        if (opponentPosition.x > playerPosition.x + FIGHTER_CONTACT_DISTANCE_X) {
-            game.opponent.moveLeft();
-        } else if (opponentPosition.x < playerPosition.x - FIGHTER_CONTACT_DISTANCE_X) {
-            game.opponent.moveRight();
-        } else {
-            game.opponent.stopMovingLeft();
-            game.opponent.stopMovingRight();
-        }
-        if (opponentPosition.y < playerPosition.y - FIGHTER_CONTACT_DISTANCE_Y) {
-            game.opponent.moveUp();
-        } else if (opponentPosition.y > playerPosition.y + FIGHTER_CONTACT_DISTANCE_Y) {
-            game.opponent.moveDown();
-        } else {
-            game.opponent.stopMovingUp();
-            game.opponent.stopMovingDown();
-        }
+        Vector2 pp=game.player.getPosition(), op=game.opponent.getPosition();
+        if (op.x > pp.x+FIGHTER_CONTACT_DISTANCE_X)      game.opponent.moveLeft();
+        else if (op.x < pp.x-FIGHTER_CONTACT_DISTANCE_X) game.opponent.moveRight();
+        else { game.opponent.stopMovingLeft(); game.opponent.stopMovingRight(); }
+        if (op.y < pp.y-FIGHTER_CONTACT_DISTANCE_Y)      game.opponent.moveUp();
+        else if (op.y > pp.y+FIGHTER_CONTACT_DISTANCE_Y) game.opponent.moveDown();
+        else { game.opponent.stopMovingUp(); game.opponent.stopMovingDown(); }
     }
 
     private void opponentAiMoveRandomly() {
-        // randomly set opponent's horizontal movement
-        switch (MathUtils.random(2)) {
-            case 0:
-                game.opponent.moveLeft();
-                break;
-            case 1:
-                game.opponent.moveRight();
-                break;
-            default:
-                game.opponent.stopMovingLeft();
-                game.opponent.stopMovingRight();
-        }
-
-        // randomly set opponent's vertical movement
-        switch (MathUtils.random(2)) {
-            case 0:
-                game.opponent.moveUp();
-                break;
-            case 1:
-                game.opponent.moveDown();
-                break;
-            default:
-                game.opponent.stopMovingUp();
-                game.opponent.stopMovingDown();
-        }
+        switch(MathUtils.random(2)) { case 0: game.opponent.moveLeft(); break; case 1: game.opponent.moveRight(); break; default: game.opponent.stopMovingLeft(); game.opponent.stopMovingRight(); }
+        switch(MathUtils.random(2)) { case 0: game.opponent.moveUp();   break; case 1: game.opponent.moveDown();  break; default: game.opponent.stopMovingUp();   game.opponent.stopMovingDown();  }
     }
 
     private void opponentAiMoveAwayFromPlayer() {
-        // move away from player's position
-        Vector2 playerPosition = game.player.getPosition();
-        Vector2 opponentPosition = game.opponent.getPosition();
-        if (opponentPosition.x > playerPosition.x) {
-            game.opponent.moveRight();
-        } else {
-            game.opponent.moveLeft();
-        }
-        if (opponentPosition.y > playerPosition.y) {
-            game.opponent.moveUp();
-        } else {
-            game.opponent.moveDown();
-        }
+        Vector2 pp=game.player.getPosition(), op=game.opponent.getPosition();
+        if (op.x > pp.x) game.opponent.moveRight(); else game.opponent.moveLeft();
+        if (op.y > pp.y) game.opponent.moveUp();    else game.opponent.moveDown();
     }
 
-    @Override
-    public void resize(int width, int height) {
-        // update the viewport with the new screen size
-        viewport.update(width, height, true);
-    }
+    @Override public void resize(int w, int h) { viewport.update(w, h, true); }
+    @Override public void pause()   { if (gameState==GameState.RUNNING) pauseGame(); game.audioManager.pauseMusic(); }
+    @Override public void resume()  { game.audioManager.playMusic(); }
+    @Override public void hide()    { }
+    @Override public void dispose() { }
 
-    @Override
-    public void pause() {
-        // if the game is running, pause it
-        if (gameState == GameState.RUNNING) {
-            pauseGame();
-        }
-
-        // pause music
-        game.audioManager.pauseMusic();
-    }
-
-    @Override
-    public void resume() {
-        // resume music (if it's enabled)
-        game.audioManager.playMusic();
-    }
-
-    @Override
-    public void hide() {
-
-    }
-
-    @Override
-    public void dispose() {
-        // dispose of gameplay button textures
-        if (moveLeftButtonSprite != null && moveLeftButtonSprite.getTexture() != null) {
-            moveLeftButtonSprite.getTexture().dispose();
-        }
-        if (moveRightButtonSprite != null && moveRightButtonSprite.getTexture() != null) {
-            moveRightButtonSprite.getTexture().dispose();
-        }
-        if (moveUpButtonSprite != null && moveUpButtonSprite.getTexture() != null) {
-            moveUpButtonSprite.getTexture().dispose();
-        }
-        if (moveDownButtonSprite != null && moveDownButtonSprite.getTexture() != null) {
-            moveDownButtonSprite.getTexture().dispose();
-        }
-        if (blockButtonSprite != null && blockButtonSprite.getTexture() != null) {
-            blockButtonSprite.getTexture().dispose();
-        }
-        if (punchButtonSprite != null && punchButtonSprite.getTexture() != null) {
-            punchButtonSprite.getTexture().dispose();
-        }
-        if (kickButtonSprite != null && kickButtonSprite.getTexture() != null) {
-            kickButtonSprite.getTexture().dispose();
-        }
-    }
-
+    // =========================================================
+    // INPUT - Teclado (sin cambios, ya corregido antes)
+    // =========================================================
     @Override
     public boolean keyDown(int keycode) {
         if (keycode == Input.Keys.SPACE) {
-            if (gameState == GameState.RUNNING) {
-                // if the game is running and the space key has been pressed, skip any round delays
-                if (roundState == RoundState.STARTING) {
-                    roundStateTime = START_ROUND_DELAY;
-                } else if (roundState == RoundState.ENDING) {
-                    roundStateTime = END_ROUND_DELAY;
-                }
-            } else if (gameState == GameState.GAME_OVER) {
-                // if the game is over and the space key has been pressed, restart the game
-                startGame();
-            } else {
-                // if the game is paused and the space key has been pressed, resume the game
-                resumeGame();
-            }
-        } else if ((gameState == GameState.RUNNING || gameState == GameState.PAUSED) && keycode == Input.Keys.P) {
-            // if the game is running or paused and the P key has been pressed, pause or resume the game
-            if (gameState == GameState.RUNNING) {
-                pauseGame();
-            } else {
-                resumeGame();
-            }
-        } else if (keycode == Input.Keys.M) {
-            // toggle music on or off
-            game.audioManager.toggleMusic();
-        } else if (keycode == Input.Keys.L) {
-            // change the difficulty
-            switch (difficulty) {
-                case EASY:
-                    difficulty = GlobalVariables.Difficulty.MEDIUM;
-                    break;
-                case MEDIUM:
-                    difficulty = GlobalVariables.Difficulty.HARD;
-                    break;
-                default:
-                    difficulty = GlobalVariables.Difficulty.EASY;
-            }
-        } else if (keycode == Input.Keys.K) {
-            // toggle blood on or off
-            showingBlood = !showingBlood;
-        } else {
-            if (roundState == RoundState.IN_PROGRESS) {
-                // check if player has pressed a movement key
-                if (keycode == Input.Keys.LEFT || keycode == Input.Keys.A) {
-                    game.player.moveLeft();
-                } else if (keycode == Input.Keys.RIGHT || keycode == Input.Keys.D) {
-                    game.player.moveRight();
-                }
-                if (keycode == Input.Keys.UP || keycode == Input.Keys.W) {
-                    game.player.moveUp();
-                } else if (keycode == Input.Keys.DOWN || keycode == Input.Keys.S) {
-                    game.player.moveDown();
-                }
-            }
-
-            // check if the player has pressed a block or attack key
-            if (keycode == Input.Keys.B) {
-                game.player.block();
-            } else if (keycode == Input.Keys.F) {
-                game.player.punch();
-            } else if (keycode == Input.Keys.V) {
-                game.player.kick();
-            }
+            if (gameState==GameState.RUNNING) {
+                if (roundState==RoundState.STARTING)     roundStateTime=START_ROUND_DELAY;
+                else if (roundState==RoundState.ENDING)  roundStateTime=END_ROUND_DELAY;
+            } else if (gameState==GameState.GAME_OVER) startGame();
+            else resumeGame();
+        } else if ((gameState==GameState.RUNNING||gameState==GameState.PAUSED) && keycode==Input.Keys.P) {
+            if (gameState==GameState.RUNNING) pauseGame(); else resumeGame();
+        } else if (keycode==Input.Keys.M) { game.audioManager.toggleMusic();
+        } else if (keycode==Input.Keys.L) {
+            switch(difficulty) { case EASY: difficulty=GlobalVariables.Difficulty.MEDIUM; break; case MEDIUM: difficulty=GlobalVariables.Difficulty.HARD; break; default: difficulty=GlobalVariables.Difficulty.EASY; }
+        } else if (keycode==Input.Keys.K) { showingBlood=!showingBlood;
+        } else if (gameState==GameState.RUNNING) {
+            if (keycode==Input.Keys.LEFT||keycode==Input.Keys.A)  game.player.moveLeft();
+            else if (keycode==Input.Keys.RIGHT||keycode==Input.Keys.D) game.player.moveRight();
+            if (keycode==Input.Keys.UP||keycode==Input.Keys.W)    game.player.moveUp();
+            else if (keycode==Input.Keys.DOWN||keycode==Input.Keys.S)  game.player.moveDown();
+            if (keycode==Input.Keys.B)      game.player.block();
+            else if (keycode==Input.Keys.F) game.player.punch();
+            else if (keycode==Input.Keys.V) game.player.kick();
         }
-
         return true;
     }
 
     @Override
     public boolean keyUp(int keycode) {
-        // if player has released a movement key, stop moving in that direction
-        if (keycode == Input.Keys.LEFT || keycode == Input.Keys.A) {
-            game.player.stopMovingLeft();
-        } else if (keycode == Input.Keys.RIGHT || keycode == Input.Keys.D) {
-            game.player.stopMovingRight();
-        }
-        if (keycode == Input.Keys.UP || keycode == Input.Keys.W) {
-            game.player.stopMovingUp();
-        } else if (keycode == Input.Keys.DOWN || keycode == Input.Keys.S) {
-            game.player.stopMovingDown();
-        }
-
-        // if player has released the block key, stop blocking
-        if (keycode == Input.Keys.B) {
-            game.player.stopBlocking();
-        }
-
+        if (keycode==Input.Keys.LEFT||keycode==Input.Keys.A)  game.player.stopMovingLeft();
+        else if (keycode==Input.Keys.RIGHT||keycode==Input.Keys.D) game.player.stopMovingRight();
+        if (keycode==Input.Keys.UP||keycode==Input.Keys.W)    game.player.stopMovingUp();
+        else if (keycode==Input.Keys.DOWN||keycode==Input.Keys.S)  game.player.stopMovingDown();
+        if (keycode==Input.Keys.B) game.player.stopBlocking();
         return true;
     }
 
-    @Override
-    public boolean keyTyped(char character) {
-        return false;
-    }
+    @Override public boolean keyTyped(char c) { return false; }
 
+    // =========================================================
+    // INPUT - Tactil
+    // =========================================================
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-        // convert the screen coordinates of the touch/click into world coordinates
-        Vector3 position = new Vector3(screenX, screenY, 0);
-        viewport.getCamera().unproject(position, viewport.getScreenX(), viewport.getScreenY(), viewport.getScreenWidth(),
-                viewport.getScreenHeight());
+        // Primero intentamos joystick / botones de accion
+        if (handleTouchDownControls(screenX, screenY, pointer)) return true;
 
-        if (gameState == GameState.RUNNING) {
-            // handle gameplay button touches
-            if (moveLeftButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                game.player.moveLeft();
-                game.audioManager.playSound(Assets.CLICK_SOUND);
-                return true;
-            } else if (moveRightButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                game.player.moveRight();
-                game.audioManager.playSound(Assets.CLICK_SOUND);
-                return true;
-            } else if (moveUpButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                game.player.moveUp();
-                game.audioManager.playSound(Assets.CLICK_SOUND);
-                return true;
-            } else if (moveDownButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                game.player.moveDown();
-                game.audioManager.playSound(Assets.CLICK_SOUND);
-                return true;
-            } else if (blockButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                game.player.block();
-                game.audioManager.playSound(Assets.CLICK_SOUND);
-                return true;
-            } else if (punchButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                game.player.punch();
-                game.audioManager.playSound(Assets.CLICK_SOUND);
-                return true;
-            } else if (kickButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                game.player.kick();
-                game.audioManager.playSound(Assets.CLICK_SOUND);
-                return true;
-            } else if (pauseButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                // if the pause button has been touched, pause the game
-                pauseGame();
+        // Luego botones de menu
+        Vector3 pos = new Vector3(screenX, screenY, 0);
+        viewport.getCamera().unproject(pos, viewport.getScreenX(), viewport.getScreenY(),
+            viewport.getScreenWidth(), viewport.getScreenHeight());
 
-                // play click sound
-                game.audioManager.playSound(Assets.CLICK_SOUND);
-                return true;
-            } else if (roundState == RoundState.STARTING) {
-                // if the round is starting and the screen has been touched, skip the start round delay
-                roundStateTime = START_ROUND_DELAY;
-                return true;
-            } else if (roundState == RoundState.ENDING) {
-                // if the round is ending and the screen has been touched, skip the end round delay
-                roundStateTime = END_ROUND_DELAY;
-                return true;
-            }
+        if (gameState==GameState.RUNNING) {
+            if (pauseButtonSprite.getBoundingRectangle().contains(pos.x, pos.y)) { pauseGame(); game.audioManager.playSound(Assets.CLICK_SOUND); }
+            else if (roundState==RoundState.STARTING) roundStateTime=START_ROUND_DELAY;
+            else if (roundState==RoundState.ENDING)   roundStateTime=END_ROUND_DELAY;
         } else {
-            if (gameState == GameState.GAME_OVER && playAgainButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                // if the game is over and the play again button has been pressed, start the game from the beginning
-                startGame();
-
-                // play click sound
+            if (gameState==GameState.GAME_OVER && playAgainButtonSprite.getBoundingRectangle().contains(pos.x,pos.y)) {
+                startGame(); game.audioManager.playSound(Assets.CLICK_SOUND);
+            } else if (gameState==GameState.PAUSED && continueButtonSprite.getBoundingRectangle().contains(pos.x,pos.y)) {
+                resumeGame(); game.audioManager.playSound(Assets.CLICK_SOUND);
+            } else if (mainMenuButtonSprite.getBoundingRectangle().contains(pos.x,pos.y)) {
                 game.audioManager.playSound(Assets.CLICK_SOUND);
-                return true;
-            } else if (gameState == GameState.PAUSED && continueButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                // if the game is paused and the continue button has been touched, resume the game
-                resumeGame();
-
-                // play click sound
-                game.audioManager.playSound(Assets.CLICK_SOUND);
-                return true;
-            } else if (mainMenuButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                // play click sound
-                game.audioManager.playSound(Assets.CLICK_SOUND);
-
-                // stop all game sounds
                 game.audioManager.stopGameSounds();
-
-                // resume music if the game is paused
-                if (gameState == GameState.PAUSED) {
-                    game.audioManager.playMusic();
-                }
-
-                // deactivate all the blood splatters
-                for (int i = 0; i < BLOOD_SPLATTER_AMOUNT; i++) {
-                    playerBloodSplatters[i].deactivate();
-                    opponentBloodSplatters[i].deactivate();
-                }
-
-                // switch to the main menu screen
+                if (gameState==GameState.PAUSED) game.audioManager.playMusic();
+                for (int i=0;i<BLOOD_SPLATTER_AMOUNT;i++) { playerBloodSplatters[i].deactivate(); opponentBloodSplatters[i].deactivate(); }
                 game.setScreen(game.mainMenuScreen);
-                return true;
             }
         }
-
         return true;
     }
 
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-        // convert the screen coordinates of the touch/click into world coordinates
-        Vector3 position = new Vector3(screenX, screenY, 0);
-        viewport.getCamera().unproject(position, viewport.getScreenX(), viewport.getScreenY(), viewport.getScreenWidth(),
-                viewport.getScreenHeight());
-
-        if (gameState == GameState.RUNNING) {
-            // handle gameplay button releases
-            if (moveLeftButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                game.player.stopMovingLeft();
-                return true;
-            } else if (moveRightButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                game.player.stopMovingRight();
-                return true;
-            } else if (moveUpButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                game.player.stopMovingUp();
-                return true;
-            } else if (moveDownButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                game.player.stopMovingDown();
-                return true;
-            } else if (blockButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
-                game.player.stopBlocking();
-                return true;
-            }
-            // Note: We don't need to handle punch/kick release because they are momentary actions
-        }
-
+        handleTouchUpControls(screenX, screenY, pointer);
         return false;
     }
 
     @Override
     public boolean touchDragged(int screenX, int screenY, int pointer) {
+        handleTouchDraggedControls(screenX, screenY, pointer);
         return false;
     }
 
-    @Override
-    public boolean mouseMoved(int screenX, int screenY) {
-        return false;
-    }
-
-    @Override
-    public boolean scrolled(float amountX, float amountY) {
-        return false;
-    }
+    @Override public boolean mouseMoved(int screenX, int screenY)   { return false; }
+    @Override public boolean scrolled(float amountX, float amountY) { return false; }
 }
