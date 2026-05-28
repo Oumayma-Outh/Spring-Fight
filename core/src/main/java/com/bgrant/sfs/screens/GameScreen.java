@@ -6,6 +6,7 @@ import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.Sprite;
@@ -88,7 +89,7 @@ public abstract class GameScreen implements Screen, InputProcessor {
     private Sprite mainMenuButtonSprite;
     private Sprite continueButtonSprite;
     private Sprite pauseButtonSprite;
-    // gameplay control buttons
+    // gameplay control button sprites (we'll create simple colored rectangles since we don't have specific textures)
     private Sprite moveLeftButtonSprite;
     private Sprite moveRightButtonSprite;
     private Sprite moveUpButtonSprite;
@@ -194,36 +195,69 @@ public abstract class GameScreen implements Screen, InputProcessor {
         pauseButtonSprite.setSize(pauseButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
                 pauseButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
 
-        // create gameplay control buttons (assuming we have regions for these in the atlas)
-        // If specific button textures aren't available, we'll use generic ones or create simple colored rectangles
-        // For now, we'll use placeholder regions - these would need to be added to the atlas
-        moveLeftButtonSprite = new Sprite(buttonTextureAtlas.findRegion("MoveLeftButton"));
-        moveLeftButtonSprite.setSize(moveLeftButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
-                moveLeftButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+        // create gameplay control button sprites (simple colored rectangles since we don't have specific textures)
+        // Move Left Button
+        Pixmap moveLeftPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
+                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
+        moveLeftPixmap.setColor(0.2f, 0.6f, 1f, 0.7f); // Blue with transparency
+        moveLeftPixmap.fill();
+        Texture moveLeftTexture = new Texture(moveLeftPixmap);
+        moveLeftButtonSprite = new Sprite(moveLeftTexture);
+        moveLeftPixmap.dispose();
 
-        moveRightButtonSprite = new Sprite(buttonTextureAtlas.findRegion("MoveRightButton"));
-        moveRightButtonSprite.setSize(moveRightButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
-                moveRightButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+        // Move Right Button
+        Pixmap moveRightPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
+                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
+        moveRightPixmap.setColor(0.2f, 0.6f, 1f, 0.7f); // Blue with transparency
+        moveRightPixmap.fill();
+        Texture moveRightTexture = new Texture(moveRightPixmap);
+        moveRightButtonSprite = new Sprite(moveRightTexture);
+        moveRightPixmap.dispose();
 
-        moveUpButtonSprite = new Sprite(buttonTextureAtlas.findRegion("MoveUpButton"));
-        moveUpButtonSprite.setSize(moveUpButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
-                moveUpButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+        // Move Up Button
+        Pixmap moveUpPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
+                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
+        moveUpPixmap.setColor(0.2f, 0.6f, 1f, 0.7f); // Blue with transparency
+        moveUpPixmap.fill();
+        Texture moveUpTexture = new Texture(moveUpPixmap);
+        moveUpButtonSprite = new Sprite(moveUpTexture);
+        moveUpPixmap.dispose();
 
-        moveDownButtonSprite = new Sprite(buttonTextureAtlas.findRegion("MoveDownButton"));
-        moveDownButtonSprite.setSize(moveDownButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
-                moveDownButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+        // Move Down Button
+        Pixmap moveDownPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
+                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
+        moveDownPixmap.setColor(0.2f, 0.6f, 1f, 0.7f); // Blue with transparency
+        moveDownPixmap.fill();
+        Texture moveDownTexture = new Texture(moveDownPixmap);
+        moveDownButtonSprite = new Sprite(moveDownTexture);
+        moveDownPixmap.dispose();
 
-        blockButtonSprite = new Sprite(buttonTextureAtlas.findRegion("BlockButton"));
-        blockButtonSprite.setSize(blockButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
-                blockButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+        // Block Button
+        Pixmap blockPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
+                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
+        blockPixmap.setColor(1f, 0.8f, 0.2f, 0.7f); // Orange with transparency
+        blockPixmap.fill();
+        Texture blockTexture = new Texture(blockPixmap);
+        blockButtonSprite = new Sprite(blockTexture);
+        blockPixmap.dispose();
 
-        punchButtonSprite = new Sprite(buttonTextureAtlas.findRegion("PunchButton"));
-        punchButtonSprite.setSize(punchButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
-                punchButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+        // Punch Button
+        Pixmap punchPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
+                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
+        punchPixmap.setColor(0.2f, 1f, 0.2f, 0.7f); // Green with transparency
+        punchPixmap.fill();
+        Texture punchTexture = new Texture(punchPixmap);
+        punchButtonSprite = new Sprite(punchTexture);
+        punchPixmap.dispose();
 
-        kickButtonSprite = new Sprite(buttonTextureAtlas.findRegion("KickButton"));
-        kickButtonSprite.setSize(kickButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
-                kickButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+        // Kick Button
+        Pixmap kickPixmap = new Pixmap((int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), 
+                (int)(GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE), Format.RGBA8888);
+        kickPixmap.setColor(1f, 0.2f, 0.2f, 0.7f); // Red with transparency
+        kickPixmap.fill();
+        Texture kickTexture = new Texture(kickPixmap);
+        kickButtonSprite = new Sprite(kickTexture);
+        kickPixmap.dispose();
     }
 
     private void createBlood() {
@@ -381,6 +415,9 @@ public abstract class GameScreen implements Screen, InputProcessor {
             }
         }
 
+        // draw gameplay control buttons
+        renderGameplayButtons();
+
         // end drawing
         game.batch.end();
     }
@@ -517,6 +554,46 @@ public abstract class GameScreen implements Screen, InputProcessor {
         pauseButtonSprite.setPosition(viewport.getWorldWidth() - PAUSE_BUTTON_MARGIN - pauseButtonSprite.getWidth(),
                 PAUSE_BUTTON_MARGIN);
         pauseButtonSprite.draw(game.batch);
+    }
+
+    private void renderGameplayButtons() {
+        // Position buttons at the bottom of the screen
+        float buttonY = GAMEPLAY_BUTTON_MARGIN;
+        float buttonSpacing = GAMEPLAY_BUTTON_MARGIN;
+        
+        // Move Left button (bottom left)
+        moveLeftButtonSprite.setPosition(buttonY, buttonY);
+        moveLeftButtonSprite.draw(game.batch);
+        
+        // Move Right button (next to move left)
+        moveRightButtonSprite.setPosition(buttonY + GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE + buttonSpacing, buttonY);
+        moveRightButtonSprite.draw(game.batch);
+        
+        // Move Up button (above move left/right)
+        moveUpButtonSprite.setPosition(buttonY + (GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE + buttonSpacing) / 2 - 
+                (GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE) / 2, 
+                buttonY + GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE + buttonSpacing);
+        moveUpButtonSprite.draw(game.batch);
+        
+        // Move Down button (below move left/right)
+        moveDownButtonSprite.setPosition(buttonY + (GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE + buttonSpacing) / 2 - 
+                (GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE) / 2, 
+                buttonY - GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE - buttonSpacing);
+        moveDownButtonSprite.draw(game.batch);
+        
+        // Block button (bottom right)
+        blockButtonSprite.setPosition(viewport.getWorldWidth() - blockButtonSprite.getWidth() - buttonY, buttonY);
+        blockButtonSprite.draw(game.batch);
+        
+        // Punch button (next to block)
+        punchButtonSprite.setPosition(viewport.getWorldWidth() - punchButtonSprite.getWidth() - buttonY - 
+                GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE - buttonSpacing, buttonY);
+        punchButtonSprite.draw(game.batch);
+        
+        // Kick button (next to punch)
+        kickButtonSprite.setPosition(viewport.getWorldWidth() - kickButtonSprite.getWidth() - buttonY - 
+                2 * (GAMEPLAY_BUTTON_SIZE * GlobalVariables.WORLD_SCALE + buttonSpacing), buttonY);
+        kickButtonSprite.draw(game.batch);
     }
 
     private void renderGameOverOverlay() {
@@ -974,7 +1051,28 @@ public abstract class GameScreen implements Screen, InputProcessor {
 
     @Override
     public void dispose() {
-
+        // dispose of gameplay button textures
+        if (moveLeftButtonSprite != null && moveLeftButtonSprite.getTexture() != null) {
+            moveLeftButtonSprite.getTexture().dispose();
+        }
+        if (moveRightButtonSprite != null && moveRightButtonSprite.getTexture() != null) {
+            moveRightButtonSprite.getTexture().dispose();
+        }
+        if (moveUpButtonSprite != null && moveUpButtonSprite.getTexture() != null) {
+            moveUpButtonSprite.getTexture().dispose();
+        }
+        if (moveDownButtonSprite != null && moveDownButtonSprite.getTexture() != null) {
+            moveDownButtonSprite.getTexture().dispose();
+        }
+        if (blockButtonSprite != null && blockButtonSprite.getTexture() != null) {
+            blockButtonSprite.getTexture().dispose();
+        }
+        if (punchButtonSprite != null && punchButtonSprite.getTexture() != null) {
+            punchButtonSprite.getTexture().dispose();
+        }
+        if (kickButtonSprite != null && kickButtonSprite.getTexture() != null) {
+            kickButtonSprite.getTexture().dispose();
+        }
     }
 
     @Override
@@ -1082,18 +1180,50 @@ public abstract class GameScreen implements Screen, InputProcessor {
                 viewport.getScreenHeight());
 
         if (gameState == GameState.RUNNING) {
-            if (pauseButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
+            // handle gameplay button touches
+            if (moveLeftButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
+                game.player.moveLeft();
+                game.audioManager.playSound(Assets.CLICK_SOUND);
+                return true;
+            } else if (moveRightButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
+                game.player.moveRight();
+                game.audioManager.playSound(Assets.CLICK_SOUND);
+                return true;
+            } else if (moveUpButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
+                game.player.moveUp();
+                game.audioManager.playSound(Assets.CLICK_SOUND);
+                return true;
+            } else if (moveDownButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
+                game.player.moveDown();
+                game.audioManager.playSound(Assets.CLICK_SOUND);
+                return true;
+            } else if (blockButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
+                game.player.block();
+                game.audioManager.playSound(Assets.CLICK_SOUND);
+                return true;
+            } else if (punchButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
+                game.player.punch();
+                game.audioManager.playSound(Assets.CLICK_SOUND);
+                return true;
+            } else if (kickButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
+                game.player.kick();
+                game.audioManager.playSound(Assets.CLICK_SOUND);
+                return true;
+            } else if (pauseButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
                 // if the pause button has been touched, pause the game
                 pauseGame();
 
                 // play click sound
                 game.audioManager.playSound(Assets.CLICK_SOUND);
+                return true;
             } else if (roundState == RoundState.STARTING) {
                 // if the round is starting and the screen has been touched, skip the start round delay
                 roundStateTime = START_ROUND_DELAY;
+                return true;
             } else if (roundState == RoundState.ENDING) {
                 // if the round is ending and the screen has been touched, skip the end round delay
                 roundStateTime = END_ROUND_DELAY;
+                return true;
             }
         } else {
             if (gameState == GameState.GAME_OVER && playAgainButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
@@ -1102,12 +1232,14 @@ public abstract class GameScreen implements Screen, InputProcessor {
 
                 // play click sound
                 game.audioManager.playSound(Assets.CLICK_SOUND);
+                return true;
             } else if (gameState == GameState.PAUSED && continueButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
                 // if the game is paused and the continue button has been touched, resume the game
                 resumeGame();
 
                 // play click sound
                 game.audioManager.playSound(Assets.CLICK_SOUND);
+                return true;
             } else if (mainMenuButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
                 // play click sound
                 game.audioManager.playSound(Assets.CLICK_SOUND);
@@ -1128,6 +1260,7 @@ public abstract class GameScreen implements Screen, InputProcessor {
 
                 // switch to the main menu screen
                 game.setScreen(game.mainMenuScreen);
+                return true;
             }
         }
 
@@ -1136,6 +1269,32 @@ public abstract class GameScreen implements Screen, InputProcessor {
 
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+        // convert the screen coordinates of the touch/click into world coordinates
+        Vector3 position = new Vector3(screenX, screenY, 0);
+        viewport.getCamera().unproject(position, viewport.getScreenX(), viewport.getScreenY(), viewport.getScreenWidth(),
+                viewport.getScreenHeight());
+
+        if (gameState == GameState.RUNNING) {
+            // handle gameplay button releases
+            if (moveLeftButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
+                game.player.stopMovingLeft();
+                return true;
+            } else if (moveRightButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
+                game.player.stopMovingRight();
+                return true;
+            } else if (moveUpButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
+                game.player.stopMovingUp();
+                return true;
+            } else if (moveDownButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
+                game.player.stopMovingDown();
+                return true;
+            } else if (blockButtonSprite.getBoundingRectangle().contains(position.x, position.y)) {
+                game.player.stopBlocking();
+                return true;
+            }
+            // Note: We don't need to handle punch/kick release because they are momentary actions
+        }
+
         return false;
     }
 
