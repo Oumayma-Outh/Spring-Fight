@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -53,6 +54,7 @@ public abstract class GameScreen implements Screen, InputProcessor {
     // fonts
     private BitmapFont smallFont, mediumFont, largeFont;
     private static final Color DEFAULT_FONT_COLOR = Color.WHITE;
+    private final GlyphLayout glyphLayout = new GlyphLayout();
 
     // HUD
     private static final Color HEALTH_BAR_COLOR = Color.RED;
@@ -80,6 +82,8 @@ public abstract class GameScreen implements Screen, InputProcessor {
     private Sprite continueButtonSprite;
     private Sprite pauseButtonSprite;
     private static final float PAUSE_BUTTON_MARGIN = 1.5f;
+    private static final float PAUSE_BUTTON_TOP_MARGIN = 8f;
+    private static final float PAUSE_BUTTON_SIZE = 6f;
 
     // opponent AI
     private float opponentAiTimer;
@@ -129,7 +133,7 @@ public abstract class GameScreen implements Screen, InputProcessor {
 
     // =========================================================
     // BOTONES DE ACCION (derecha inferior)
-    // P = Puño   K = Patada   B = Bloqueo
+    // PUNCH = Puño   KICK = Patada   ELBOW = Codo
     // =========================================================
     private static final float ACTION_BUTTON_RADIUS = 3f;
     private static final float ACTION_BUTTON_MARGIN = 1.5f;
@@ -166,6 +170,16 @@ public abstract class GameScreen implements Screen, InputProcessor {
         punchButtonCircle.set(w - m - r,            m + r,            r);
         kickButtonCircle .set(w - m - r*3f - m,     m + r,            r);
         blockButtonCircle.set(w - m - r,             m + r*3f + m,     r);
+    }
+
+    // ---------------------------------------------------------
+    // Posicion del boton PAUSE (arriba-derecha, pequeño y separado)
+    // ---------------------------------------------------------
+    private void positionPauseButton() {
+        pauseButtonSprite.setPosition(
+            viewport.getWorldWidth() - PAUSE_BUTTON_MARGIN - pauseButtonSprite.getWidth(),
+            viewport.getWorldHeight() - PAUSE_BUTTON_TOP_MARGIN - pauseButtonSprite.getHeight()
+        );
     }
 
     // ---------------------------------------------------------
@@ -209,16 +223,21 @@ public abstract class GameScreen implements Screen, InputProcessor {
         Gdx.gl.glDisable(GL20.GL_BLEND);
         game.batch.begin();
 
-        // etiquetas: P K B
-        smallFont.draw(game.batch, "P",
-            punchButtonCircle.x - smallFont.getSpaceXadvance() * 0.5f,
-            punchButtonCircle.y + smallFont.getCapHeight() * 0.5f);
-        smallFont.draw(game.batch, "K",
-            kickButtonCircle.x - smallFont.getSpaceXadvance() * 0.5f,
-            kickButtonCircle.y + smallFont.getCapHeight() * 0.5f);
-        smallFont.draw(game.batch, "B",
-            blockButtonCircle.x - smallFont.getSpaceXadvance() * 0.5f,
-            blockButtonCircle.y + smallFont.getCapHeight() * 0.5f);
+        // etiquetas: PUNCH  KICK  ELBOW  (centradas en cada boton)
+        glyphLayout.setText(smallFont, "PUNCH");
+        smallFont.draw(game.batch, "PUNCH",
+            punchButtonCircle.x - glyphLayout.width / 2f,
+            punchButtonCircle.y + glyphLayout.height / 2f);
+
+        glyphLayout.setText(smallFont, "KICK");
+        smallFont.draw(game.batch, "KICK",
+            kickButtonCircle.x - glyphLayout.width / 2f,
+            kickButtonCircle.y + glyphLayout.height / 2f);
+
+        glyphLayout.setText(smallFont, "ELBOW");
+        smallFont.draw(game.batch, "ELBOW",
+            blockButtonCircle.x - glyphLayout.width / 2f,
+            blockButtonCircle.y + glyphLayout.height / 2f);
     }
 
     // ---------------------------------------------------------
@@ -315,8 +334,6 @@ public abstract class GameScreen implements Screen, InputProcessor {
     }
 
     // =========================================================
-    // El resto del codigo original (sin cambios)
-    // =========================================================
 
     private void createGameArea() {
         backgroundTexture = game.assets.manager.get(Assets.BACKGROUND_TEXTURE);
@@ -356,8 +373,8 @@ public abstract class GameScreen implements Screen, InputProcessor {
             continueButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
 
         pauseButtonSprite = new Sprite(buttonTextureAtlas.findRegion("PauseButton"));
-        pauseButtonSprite.setSize(pauseButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
-            pauseButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+        // Tamaño pequeño igual a los botones de acción (6x6)
+        pauseButtonSprite.setSize(PAUSE_BUTTON_SIZE, PAUSE_BUTTON_SIZE);
     }
 
     private void createBlood() {
@@ -447,7 +464,7 @@ public abstract class GameScreen implements Screen, InputProcessor {
             frontRopesTexture.getHeight() * GlobalVariables.WORLD_SCALE);
         renderHUD();
         renderPauseButton();
-        renderTouchControls();   // <-- JOYSTICK + BOTONES
+        renderTouchControls();
 
         if (gameState == GameState.GAME_OVER) {
             renderGameOverOverlay();
@@ -517,7 +534,7 @@ public abstract class GameScreen implements Screen, InputProcessor {
     }
 
     private void renderPauseButton() {
-        pauseButtonSprite.setPosition(viewport.getWorldWidth()-PAUSE_BUTTON_MARGIN-pauseButtonSprite.getWidth(), PAUSE_BUTTON_MARGIN);
+        positionPauseButton();
         pauseButtonSprite.draw(game.batch);
     }
 
@@ -711,7 +728,7 @@ public abstract class GameScreen implements Screen, InputProcessor {
     @Override public void dispose() { }
 
     // =========================================================
-    // INPUT - Teclado (sin cambios, ya corregido antes)
+    // INPUT - Teclado
     // =========================================================
     @Override
     public boolean keyDown(int keycode) {
@@ -763,6 +780,9 @@ public abstract class GameScreen implements Screen, InputProcessor {
         Vector3 pos = new Vector3(screenX, screenY, 0);
         viewport.getCamera().unproject(pos, viewport.getScreenX(), viewport.getScreenY(),
             viewport.getScreenWidth(), viewport.getScreenHeight());
+
+        // Asegurar posicion correcta del pause button antes del hit-test
+        positionPauseButton();
 
         if (gameState==GameState.RUNNING) {
             if (pauseButtonSprite.getBoundingRectangle().contains(pos.x, pos.y)) { pauseGame(); game.audioManager.playSound(Assets.CLICK_SOUND); }
