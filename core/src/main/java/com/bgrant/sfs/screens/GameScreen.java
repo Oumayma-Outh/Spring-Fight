@@ -88,7 +88,17 @@ public abstract class GameScreen implements Screen, InputProcessor {
     private Sprite mainMenuButtonSprite;
     private Sprite continueButtonSprite;
     private Sprite pauseButtonSprite;
+    // gameplay control buttons
+    private Sprite moveLeftButtonSprite;
+    private Sprite moveRightButtonSprite;
+    private Sprite moveUpButtonSprite;
+    private Sprite moveDownButtonSprite;
+    private Sprite blockButtonSprite;
+    private Sprite punchButtonSprite;
+    private Sprite kickButtonSprite;
     private static final float PAUSE_BUTTON_MARGIN = 1.5f;
+    private static final float GAMEPLAY_BUTTON_MARGIN = 2f;
+    private static final float GAMEPLAY_BUTTON_SIZE = 6f;
 
     // opponent AI
     private float opponentAiTimer;
@@ -183,6 +193,37 @@ public abstract class GameScreen implements Screen, InputProcessor {
         pauseButtonSprite = new Sprite(buttonTextureAtlas.findRegion("PauseButton"));
         pauseButtonSprite.setSize(pauseButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
                 pauseButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+
+        // create gameplay control buttons (assuming we have regions for these in the atlas)
+        // If specific button textures aren't available, we'll use generic ones or create simple colored rectangles
+        // For now, we'll use placeholder regions - these would need to be added to the atlas
+        moveLeftButtonSprite = new Sprite(buttonTextureAtlas.findRegion("MoveLeftButton"));
+        moveLeftButtonSprite.setSize(moveLeftButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
+                moveLeftButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+
+        moveRightButtonSprite = new Sprite(buttonTextureAtlas.findRegion("MoveRightButton"));
+        moveRightButtonSprite.setSize(moveRightButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
+                moveRightButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+
+        moveUpButtonSprite = new Sprite(buttonTextureAtlas.findRegion("MoveUpButton"));
+        moveUpButtonSprite.setSize(moveUpButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
+                moveUpButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+
+        moveDownButtonSprite = new Sprite(buttonTextureAtlas.findRegion("MoveDownButton"));
+        moveDownButtonSprite.setSize(moveDownButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
+                moveDownButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+
+        blockButtonSprite = new Sprite(buttonTextureAtlas.findRegion("BlockButton"));
+        blockButtonSprite.setSize(blockButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
+                blockButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+
+        punchButtonSprite = new Sprite(buttonTextureAtlas.findRegion("PunchButton"));
+        punchButtonSprite.setSize(punchButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
+                punchButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
+
+        kickButtonSprite = new Sprite(buttonTextureAtlas.findRegion("KickButton"));
+        kickButtonSprite.setSize(kickButtonSprite.getWidth() * GlobalVariables.WORLD_SCALE,
+                kickButtonSprite.getHeight() * GlobalVariables.WORLD_SCALE);
     }
 
     private void createBlood() {
